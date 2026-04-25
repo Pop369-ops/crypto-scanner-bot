@@ -309,7 +309,7 @@ def _call_claude(sys_p, msg, max_tok=800):
     try:
         r = requests.post(CLAUDE_API,
             headers={"x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","Content-Type":"application/json"},
-            json={"model":"claude-sonnet-4-6","max_tokens":max_tok,"system":sys_p,
+            json={"model":"claude-haiku-4-5-20251001","max_tokens":max_tok,"system":sys_p,
                   "messages":[{"role":"user","content":msg}]},
             timeout=(10,60))
         if r.status_code==200: return r.json()["content"][0]["text"].strip()
@@ -322,7 +322,7 @@ def _call_gpt(sys_p, msg, max_tok=900):
     try:
         r = requests.post(OPENAI_API,
             headers={"Authorization":f"Bearer {OPENAI_KEY}","Content-Type":"application/json"},
-            json={"model":"gpt-4o","max_tokens":max_tok,"temperature":0.3,
+            json={"model":"gpt-3.5-turbo","max_tokens":max_tok,"temperature":0.3,
                   "messages":[{"role":"system","content":sys_p},{"role":"user","content":msg}]},
             timeout=(10,60))
         if r.status_code==200: return r.json()["choices"][0]["message"]["content"].strip()
