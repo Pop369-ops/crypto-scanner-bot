@@ -40,7 +40,7 @@ OPENAI_KEY    = os.environ.get("OPENAI_API_KEY",    "")
 GEMINI_KEY    = os.environ.get("GEMINI_API_KEY",    "")
 
 OPENAI_API  = "https://api.openai.com/v1/chat/completions"
-GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 CLAUDE_API  = "https://api.anthropic.com/v1/messages"
 
 COINGECKO  = "https://api.coingecko.com/api/v3"
@@ -322,7 +322,7 @@ def _call_gpt(sys_p, msg, max_tok=900):
     try:
         r = requests.post(OPENAI_API,
             headers={"Authorization":f"Bearer {OPENAI_KEY}","Content-Type":"application/json"},
-            json={"model":"gpt-3.5-turbo","max_tokens":max_tok,"temperature":0.3,
+            json={"model":"gpt-4o-mini","max_tokens":max_tok,"temperature":0.3,
                   "messages":[{"role":"system","content":sys_p},{"role":"user","content":msg}]},
             timeout=(10,60))
         if r.status_code==200: return r.json()["choices"][0]["message"]["content"].strip()
