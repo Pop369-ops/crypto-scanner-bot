@@ -819,7 +819,7 @@ def main():
         print("❌ أضف BOT_TOKEN في Railway"); return
     if not ANTHROPIC_KEY:
         print("⚠️  ANTHROPIC_API_KEY غير موجود — وكلاء AI معطلون")
-    app = ApplicationBuilder().token(BOT_TOKEN).job_queue(True).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     for cmd,fn in [("start",cmd_start),("scan",cmd_scan),("analyze",cmd_analyze),
                    ("watch",cmd_watch),("unwatch",cmd_unwatch),("watchlist",cmd_watchlist),
                    ("market",cmd_market),("dex",cmd_dex),("settings",cmd_settings)]:
