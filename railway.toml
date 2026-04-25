@@ -1,0 +1,3 @@
+[deploy]
+startCommand = "python CRYPTO_SCANNER_BOT.py"
+restartPolicyType = "always"
