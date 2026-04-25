@@ -308,12 +308,16 @@ def _call_claude(sys_p, msg, max_tok=800):
     if not ANTHROPIC_KEY: return "[Claude: أضف ANTHROPIC_API_KEY]"
     try:
         r = requests.post(CLAUDE_API,
-            headers={"x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","Content-Type":"application/json"},
+            headers={"x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-beta":"messages-2023-12-15","Content-Type":"application/json"},
             json={"model":"claude-haiku-4-5-20251001","max_tokens":max_tok,"system":sys_p,
                   "messages":[{"role":"user","content":msg}]},
             timeout=(10,60))
         if r.status_code==200: return r.json()["content"][0]["text"].strip()
-        return f"[Claude {r.status_code}]"
+        # طباعة تفاصيل الخطأ لمعرفة السبب
+        err_detail = ""
+        try: err_detail = r.json().get("error",{}).get("message","")[:100]
+        except: err_detail = r.text[:100]
+        return f"[Claude {r.status_code}: {err_detail}]"
     except Exception as e: return f"[Claude: {str(e)[:50]}]"
 
 def _call_gpt(sys_p, msg, max_tok=900):
