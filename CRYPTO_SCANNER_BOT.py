@@ -300,16 +300,32 @@ def _call_gemini(sys_p, msg, max_tok=1500):
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{"parts": [{"text": f"{sys_p}\n\n{msg}"}]}],
-                "generationConfig": {"maxOutputTokens": max_tok, "temperature": 0.3},
+                "generationConfig": {
+                    "maxOutputTokens": max_tok,
+                    "temperature": 0.3,
+                },
+                "thinkingConfig": {"thinkingBudget": 0},
             },
             timeout=(15, 90),
         )
         if resp.status_code == 200:
             data = resp.json()
-            # استخرج النص من الـ response
             try:
-                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            except (KeyError, IndexError, TypeError):
+                candidate = data["candidates"][0]
+                # تحقق من finishReason
+                finish = candidate.get("finishReason","")
+                if finish == "MAX_TOKENS":
+                    # حاول استخراج أي نص موجود
+                    parts = candidate.get("content",{}).get("parts",[])
+                    if parts and parts[0].get("text"):
+                        return parts[0]["text"].strip()
+                    return "[Gemini: انتهت الـ tokens — جارٍ إعادة المحاولة بنص أقصر]"
+                # استخراج عادي
+                parts = candidate.get("content",{}).get("parts",[])
+                if parts:
+                    return parts[0].get("text","").strip()
+                return str(candidate)[:300]
+            except (KeyError, IndexError, TypeError) as e:
                 return str(data)[:500]
         # في حالة الخطأ — استخرج الرسالة
         try:
