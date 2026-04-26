@@ -290,61 +290,116 @@ ORACLE_SYS = """أنت "العراف" — كبير محللي Wall Street وHarv
 ابدأ بـ "⚡ حكم العراف:" ثم: درجة الثقة (0-100)، التوصية، هدف السعر (نسبة نمو)، أهم محفز وأهم مخاطرة.
 أجب بالعربية."""
 
-def _call_gemini(sys_p, msg, max_tok=800):
-    """الصقر — Gemini."""
-    if not GEMINI_KEY: return "[Gemini: أضف GEMINI_API_KEY]"
+def _call_gemini(sys_p, msg, max_tok=1500):
+    """🔴 الصقر — Gemini 2.5 Pro"""
+    if not GEMINI_KEY:
+        return "[الصقر: أضف GEMINI_API_KEY في Railway]"
     try:
-        r = requests.post(f"{GEMINI_API}?key={GEMINI_KEY}",
-            headers={"Content-Type":"application/json"},
-            json={"contents":[{"parts":[{"text":f"{sys_p}\n\n{msg}"}]}],
-                  "generationConfig":{"maxOutputTokens":max_tok,"temperature":0.3}},
-            timeout=(15,90))
-        if r.status_code==200:
-            data = r.json()
+        resp = requests.post(
+            f"{GEMINI_API}?key={GEMINI_KEY}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [{"parts": [{"text": f"{sys_p}\n\n{msg}"}]}],
+                "generationConfig": {"maxOutputTokens": max_tok, "temperature": 0.3},
+            },
+            timeout=(15, 90),
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            # استخرج النص من الـ response
             try:
                 return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            except KeyError:
-                try: return data["candidates"][0]["content"]["parts"][0].get("text","").strip()
-                except: return str(data)[:300]["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return f"[Gemini {r.status_code}]"
-    except Exception as e: return f"[Gemini: {str(e)[:50]}]"
+            except (KeyError, IndexError, TypeError):
+                return str(data)[:500]
+        # في حالة الخطأ — استخرج الرسالة
+        try:
+            err = resp.json().get("error", {}).get("message", resp.text[:100])
+        except Exception:
+            err = resp.text[:100]
+        return f"[Gemini {resp.status_code}: {err}]"
+    except Exception as e:
+        return f"[Gemini خطأ: {str(e)[:80]}]"
 
-def _call_claude(sys_p, msg, max_tok=800):
-    """الحكيم — Claude."""
-    if not ANTHROPIC_KEY: return "[Claude: أضف ANTHROPIC_API_KEY]"
+
+def _call_claude(sys_p, msg, max_tok=1500):
+    """🔵 الحكيم — Claude Haiku"""
+    if not ANTHROPIC_KEY:
+        return "[الحكيم: أضف ANTHROPIC_API_KEY في Railway]"
     try:
-        r = requests.post(CLAUDE_API,
-            headers={"x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-beta":"messages-2023-12-15","Content-Type":"application/json"},
-            json={"model":"claude-haiku-4-5-20251001","max_tokens":max_tok,"system":sys_p,
-                  "messages":[{"role":"user","content":msg}]},
-            timeout=(15,90))
-        if r.status_code==200: return r.json()["content"][0]["text"].strip()
-        # طباعة تفاصيل الخطأ لمعرفة السبب
-        err_detail = ""
-        try: err_detail = r.json().get("error",{}).get("message","")[:100]
-        except: err_detail = r.text[:100]
-        return f"[Claude {r.status_code}: {err_detail}]"
-    except Exception as e: return f"[Claude: {str(e)[:50]}]"
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key":         ANTHROPIC_KEY,
+                "anthropic-version": "2023-06-01",
+                "Content-Type":      "application/json",
+            },
+            json={
+                "model":      "claude-haiku-4-5-20251001",
+                "max_tokens": max_tok,
+                "system":     sys_p,
+                "messages":   [{"role": "user", "content": msg}],
+            },
+            timeout=(15, 90),
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            try:
+                return data["content"][0]["text"].strip()
+            except (KeyError, IndexError, TypeError):
+                return str(data)[:500]
+        try:
+            err = resp.json().get("error", {}).get("message", resp.text[:100])
+        except Exception:
+            err = resp.text[:100]
+        return f"[Claude {resp.status_code}: {err}]"
+    except Exception as e:
+        return f"[Claude خطأ: {str(e)[:80]}]"
 
-def _call_gpt(sys_p, msg, max_tok=900):
-    """العراف — GPT-4o."""
-    if not OPENAI_KEY: return "[GPT: أضف OPENAI_API_KEY]"
+
+def _call_gpt(sys_p, msg, max_tok=1500):
+    """🟢 العراف — GPT-4o mini"""
+    if not OPENAI_KEY:
+        return "[العراف: أضف OPENAI_API_KEY في Railway]"
     try:
-        r = requests.post(OPENAI_API,
-            headers={"Authorization":f"Bearer {OPENAI_KEY}","Content-Type":"application/json"},
-            json={"model":"gpt-4o-mini","max_tokens":max_tok,"temperature":0.3,
-                  "messages":[{"role":"system","content":sys_p},{"role":"user","content":msg}]},
-            timeout=(15,90))
-        if r.status_code==200: return r.json()["choices"][0]["message"]["content"].strip()
-        return f"[GPT {r.status_code}]"
-    except Exception as e: return f"[GPT: {str(e)[:50]}]"
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_KEY}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "model":      "gpt-4o-mini",
+                "max_tokens": max_tok,
+                "temperature": 0.3,
+                "messages": [
+                    {"role": "system", "content": sys_p},
+                    {"role": "user",   "content": msg},
+                ],
+            },
+            timeout=(15, 90),
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            try:
+                return data["choices"][0]["message"]["content"].strip()
+            except (KeyError, IndexError, TypeError):
+                return str(data)[:500]
+        try:
+            err = resp.json().get("error", {}).get("message", resp.text[:100])
+        except Exception:
+            err = resp.text[:100]
+        return f"[GPT {resp.status_code}: {err}]"
+    except Exception as e:
+        return f"[GPT خطأ: {str(e)[:80]}]"
 
-def call_claude(system, user_msg, max_tok=800):
-    """Fallback — يجرب المتاح."""
+
+def call_claude(system, user_msg, max_tok=1000):
+    """Fallback — يجرب المتاح بالترتيب."""
     for fn in [_call_claude, _call_gemini, _call_gpt]:
-        r = fn(system, user_msg, max_tok)
-        if not any(x in r for x in ["أضف","خطأ","Error",": 4","]: 5"]): return r
-    return r
+        result = fn(system, user_msg, max_tok)
+        if not any(x in result for x in ["أضف", "خطأ", "Error", " 4", " 5"]):
+            return result
+    return result
 
 
 
