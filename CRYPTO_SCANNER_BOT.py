@@ -40,7 +40,7 @@ OPENAI_KEY    = os.environ.get("OPENAI_API_KEY",    "")
 GEMINI_KEY    = os.environ.get("GEMINI_API_KEY",    "")
 
 OPENAI_API  = "https://api.openai.com/v1/chat/completions"
-GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
 CLAUDE_API  = "https://api.anthropic.com/v1/messages"
 
 COINGECKO  = "https://api.coingecko.com/api/v3"
@@ -297,8 +297,8 @@ def _call_gemini(sys_p, msg, max_tok=800):
         r = requests.post(f"{GEMINI_API}?key={GEMINI_KEY}",
             headers={"Content-Type":"application/json"},
             json={"contents":[{"parts":[{"text":f"{sys_p}\n\n{msg}"}]}],
-                  "generationConfig":{"maxOutputTokens":max_tok,"temperature":0.2,"topP":0.8}},
-            timeout=(10,60))
+                  "generationConfig":{"maxOutputTokens":max_tok,"temperature":0.3}},
+            timeout=(15,90))
         if r.status_code==200:
             data = r.json()
             try:
@@ -317,7 +317,7 @@ def _call_claude(sys_p, msg, max_tok=800):
             headers={"x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-beta":"messages-2023-12-15","Content-Type":"application/json"},
             json={"model":"claude-haiku-4-5-20251001","max_tokens":max_tok,"system":sys_p,
                   "messages":[{"role":"user","content":msg}]},
-            timeout=(10,60))
+            timeout=(15,90))
         if r.status_code==200: return r.json()["content"][0]["text"].strip()
         # طباعة تفاصيل الخطأ لمعرفة السبب
         err_detail = ""
@@ -334,7 +334,7 @@ def _call_gpt(sys_p, msg, max_tok=900):
             headers={"Authorization":f"Bearer {OPENAI_KEY}","Content-Type":"application/json"},
             json={"model":"gpt-4o-mini","max_tokens":max_tok,"temperature":0.3,
                   "messages":[{"role":"system","content":sys_p},{"role":"user","content":msg}]},
-            timeout=(10,60))
+            timeout=(15,90))
         if r.status_code==200: return r.json()["choices"][0]["message"]["content"].strip()
         return f"[GPT {r.status_code}]"
     except Exception as e: return f"[GPT: {str(e)[:50]}]"
@@ -373,9 +373,9 @@ Commits: {tokenomics.get('commits',0)}/4أسابيع"""
 
     # 🔴 الصقر — Gemini (سيولة + أموال ذكية)
     hawk = _call_gemini(HAWK_SYS, f"حلل السيولة:\n{pair_txt}\nالسوق: {mkt_txt}", 600)
-    if any(x in hawk for x in ['أضف','خطأ']): hawk = _call_claude(HAWK_SYS, f"حلل السيولة:\n{pair_txt}", 600)
+    if any(x in hawk for x in ['أضف','خطأ']): hawk = _call_claude(HAWK_SYS, f"حلل السيولة:\n{pair_txt}", 1500)
     # 🔵 الحكيم — Claude (أمان + tokenomics)
-    sage = _call_claude(SAGE_SYS, f"حلل الأمان والتوكنوميكس:\n{sec_txt}\n{tok_txt}", 600)
+    sage = _call_claude(SAGE_SYS, f"حلل الأمان والتوكنوميكس:\n{sec_txt}\n{tok_txt}", 1500)
     if any(x in sage for x in ['أضف','خطأ']): sage = _call_gemini(SAGE_SYS, f"حلل التوكنوميكس:\n{tok_txt}", 600)
     # 🟢 العراف — GPT-4o (حكم نهائي موحّد)
     _oracle_inp = f"تقرير الصقر (Gemini):\n{hawk}\n\nتقرير الحكيم (Claude):\n{sage}\n\nالبيانات:\n{pair_txt}\n{sec_txt}\n{tok_txt}\n{mkt_txt}\n\nأصدر الحكم الموحّد 6-12 شهر مع التوافق بين الوكيلين."
@@ -385,7 +385,7 @@ Commits: {tokenomics.get('commits',0)}/4أسابيع"""
     conf = 50
     m = re.search(r'(\d{1,3})\s*(?:/100|٪|%)', oracle)
     if m: conf = min(100, int(m.group(1)))
-    return {"hawk":hawk,"hawk_model":"Gemini 2.5 Flash","sage":sage,"sage_model":"Claude Sonnet","oracle":oracle,"oracle_model":"GPT-4o","confidence":conf}
+    return {"hawk":hawk,"hawk_model":"Gemini 2.5 Pro","sage":sage,"sage_model":"Claude Sonnet","oracle":oracle,"oracle_model":"GPT-4o","confidence":conf}
 
 
 # ══════════════════════════════════════════════════════════════════
