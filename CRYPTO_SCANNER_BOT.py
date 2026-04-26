@@ -667,28 +667,58 @@ async def cmd_analyze(u: Update, c: ContextTypes.DEFAULT_TYPE):
                     "base_addr":  bp_raw.get("baseToken",{}).get("address",""),
                     "url":        bp_raw.get("url",""),
                 }
-            # CoinGecko
+            # CoinGecko — البحث الرئيسي لأي عملة
             tok={}
             search = safe_get(f"{COINGECKO}/search",{"query":raw})
+            if not search or not search.get("coins"):
+                # جرب بالاسم المختلف
+                search = safe_get(f"{COINGECKO}/search",{"query":raw.lower()})
             if search and search.get("coins"):
-                tok = sage_tokenomics(search["coins"][0]["id"])
-                if not pair:
+                coin_id = search["coins"][0]["id"]
+                tok = sage_tokenomics(coin_id) or {}
+                if not pair and tok:
+                    vol24 = tok.get("vol_24h",0) or 0
                     pair = {
-                        "name": tok.get("name",""),
-                        "chain":"multi","dex":"CEX/DEX",
-                        "price_usd":tok.get("price",0),
-                        "liquidity":tok.get("vol_24h",0),
-                        "vol_1h":tok.get("vol_24h",0)/24 if tok.get("vol_24h") else 0,
-                        "vol_24h":tok.get("vol_24h",0),
-                        "chg_1h":0,"chg_24h":tok.get("chg_24h",0),
-                        "buy_pressure":55,"age_min":99999,
-                        "base_addr":"","url":tok.get("homepage",""),
+                        "name":      tok.get("name","") or raw.upper(),
+                        "chain":     "multi",
+                        "dex":       "CEX/DEX",
+                        "price_usd": tok.get("price",0) or 0,
+                        "liquidity": vol24,
+                        "vol_1h":    vol24/24 if vol24 else 0,
+                        "vol_24h":   vol24,
+                        "chg_1h":    0,
+                        "chg_24h":   tok.get("chg_24h",0) or 0,
+                        "buy_pressure": 55,
+                        "age_min":   99999,
+                        "base_addr": "",
+                        "url":       tok.get("homepage","") or "",
                     }
-            if not pair: return None,None,None,None,fg,gm
+            # إذا لا يزال فارغاً — جرب CoinGecko ID المباشر
+            if not pair:
+                direct = sage_tokenomics(raw.lower())
+                if direct:
+                    tok = direct
+                    vol24 = tok.get("vol_24h",0) or 0
+                    pair = {
+                        "name": tok.get("name","") or raw.upper(),
+                        "chain":"multi","dex":"CEX/DEX",
+                        "price_usd":tok.get("price",0) or 0,
+                        "liquidity":vol24,"vol_1h":vol24/24 if vol24 else 0,
+                        "vol_24h":vol24,"chg_1h":0,
+                        "chg_24h":tok.get("chg_24h",0) or 0,
+                        "buy_pressure":55,"age_min":99999,
+                        "base_addr":"","url":"",
+                    }
+            if not pair:
+                return None,None,None,None,fg,gm
             # Audit
-            addr  = pair.get("base_addr","")
-            chain = pair.get("chain","ethereum") if pair.get("chain") not in ("multi","") else "ethereum"
-            sec = sage_audit(addr, chain) if addr else {"status":"unknown","score":50,"flags":[],"risks":["⚠️ عنوان غير متاح"]}
+            addr  = (pair or {}).get("base_addr","") or ""
+            chain = (pair or {}).get("chain","ethereum")
+            if chain in ("multi","",None): chain = "ethereum"
+            if addr and len(addr) > 10:
+                sec = sage_audit(addr, chain)
+            else:
+                sec = {"status":"unknown","score":50,"flags":[],"risks":["⚠️ عنوان العقد غير متاح — عملة CEX"]}
             # AI Ensemble
             ens = oracle_ensemble(pair,sec,tok,fg,gm)
             return pair,sec,tok,ens,fg,gm
