@@ -303,8 +303,7 @@ def _call_gemini(sys_p, msg, max_tok=1500):
                 "generationConfig": {
                     "maxOutputTokens": max_tok,
                     "temperature": 0.3,
-                },
-                "thinkingConfig": {"thinkingBudget": 0},
+                }
             },
             timeout=(15, 90),
         )
