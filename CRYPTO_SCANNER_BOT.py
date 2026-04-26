@@ -40,7 +40,7 @@ OPENAI_KEY    = os.environ.get("OPENAI_API_KEY",    "")
 GEMINI_KEY    = os.environ.get("GEMINI_API_KEY",    "")
 
 OPENAI_API  = "https://api.openai.com/v1/chat/completions"
-GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
 CLAUDE_API  = "https://api.anthropic.com/v1/messages"
 
 COINGECKO  = "https://api.coingecko.com/api/v3"
@@ -297,7 +297,7 @@ def _call_gemini(sys_p, msg, max_tok=800):
         r = requests.post(f"{GEMINI_API}?key={GEMINI_KEY}",
             headers={"Content-Type":"application/json"},
             json={"contents":[{"parts":[{"text":f"{sys_p}\n\n{msg}"}]}],
-                  "generationConfig":{"maxOutputTokens":max_tok,"temperature":0.3}},
+                  "generationConfig":{"maxOutputTokens":max_tok,"temperature":0.2,"topP":0.8}},
             timeout=(10,60))
         if r.status_code==200: return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         return f"[Gemini {r.status_code}]"
@@ -379,7 +379,7 @@ Commits: {tokenomics.get('commits',0)}/4أسابيع"""
     conf = 50
     m = re.search(r'(\d{1,3})\s*(?:/100|٪|%)', oracle)
     if m: conf = min(100, int(m.group(1)))
-    return {"hawk":hawk,"hawk_model":"Gemini 1.5 Flash","sage":sage,"sage_model":"Claude Sonnet","oracle":oracle,"oracle_model":"GPT-4o","confidence":conf}
+    return {"hawk":hawk,"hawk_model":"Gemini 2.5 Pro","sage":sage,"sage_model":"Claude Sonnet","oracle":oracle,"oracle_model":"GPT-4o","confidence":conf}
 
 
 # ══════════════════════════════════════════════════════════════════
