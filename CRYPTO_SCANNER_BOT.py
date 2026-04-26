@@ -40,7 +40,6 @@ OPENAI_KEY    = os.environ.get("OPENAI_API_KEY",    "")
 GEMINI_KEY    = os.environ.get("GEMINI_API_KEY",    "")
 
 OPENAI_API  = "https://api.openai.com/v1/chat/completions"
-GEMINI_API  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
 CLAUDE_API  = "https://api.anthropic.com/v1/messages"
 
 COINGECKO  = "https://api.coingecko.com/api/v3"
@@ -290,50 +289,59 @@ ORACLE_SYS = """أنت "العراف" — كبير محللي Wall Street وHarv
 ابدأ بـ "⚡ حكم العراف:" ثم: درجة الثقة (0-100)، التوصية، هدف السعر (نسبة نمو)، أهم محفز وأهم مخاطرة.
 أجب بالعربية."""
 
-def _call_gemini(sys_p, msg, max_tok=1500):
-    """🔴 الصقر — Gemini 2.5 Pro"""
+def _call_gemini_model(model_name, sys_p, msg, max_tok=2048):
+    """استدعاء Gemini بنموذج محدد."""
     if not GEMINI_KEY:
-        return "[الصقر: أضف GEMINI_API_KEY في Railway]"
+        return None
+    base = "https://generativelanguage.googleapis.com/v1beta/models"
     try:
         resp = requests.post(
-            f"{GEMINI_API}?key={GEMINI_KEY}",
+            f"{base}/{model_name}:generateContent?key={GEMINI_KEY}",
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{"parts": [{"text": f"{sys_p}\n\n{msg}"}]}],
                 "generationConfig": {
-                    "maxOutputTokens": max_tok,
+                    "maxOutputTokens": 8192,
                     "temperature": 0.3,
-                }
+                    "thinkingConfig": {"thinkingBudget": 0}
+                },
             },
             timeout=(15, 90),
         )
-        if resp.status_code == 200:
-            data = resp.json()
-            try:
-                candidate = data["candidates"][0]
-                # تحقق من finishReason
-                finish = candidate.get("finishReason","")
-                if finish == "MAX_TOKENS":
-                    # حاول استخراج أي نص موجود
-                    parts = candidate.get("content",{}).get("parts",[])
-                    if parts and parts[0].get("text"):
-                        return parts[0]["text"].strip()
-                    return "[Gemini: انتهت الـ tokens — جارٍ إعادة المحاولة بنص أقصر]"
-                # استخراج عادي
-                parts = candidate.get("content",{}).get("parts",[])
-                if parts:
-                    return parts[0].get("text","").strip()
-                return str(candidate)[:300]
-            except (KeyError, IndexError, TypeError) as e:
-                return str(data)[:500]
-        # في حالة الخطأ — استخرج الرسالة
-        try:
-            err = resp.json().get("error", {}).get("message", resp.text[:100])
-        except Exception:
-            err = resp.text[:100]
-        return f"[Gemini {resp.status_code}: {err}]"
-    except Exception as e:
-        return f"[Gemini خطأ: {str(e)[:80]}]"
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        candidate = data.get("candidates", [{}])[0]
+        finish = candidate.get("finishReason", "")
+        parts = candidate.get("content", {}).get("parts", [])
+        if parts and parts[0].get("text", "").strip():
+            return parts[0]["text"].strip()
+        return None
+    except Exception:
+        return None
+
+
+def _call_gemini(sys_p, msg, max_tok=1500):
+    """🔴 الصقر — يجرب Pro ثم Flash تلقائياً"""
+    if not GEMINI_KEY:
+        return "[الصقر: أضف GEMINI_API_KEY في Railway]"
+
+    # جرب Pro أولاً
+    result = _call_gemini_model("gemini-2.5-pro", sys_p, msg, 4096)
+    if result:
+        return result
+
+    # جرب Flash كـ fallback
+    result = _call_gemini_model("gemini-2.5-flash", sys_p, msg, 4096)
+    if result:
+        return result
+
+    # جرب 2.0 Flash كـ fallback أخير
+    result = _call_gemini_model("gemini-2.0-flash", sys_p, msg, 2048)
+    if result:
+        return result
+
+    return "[الصقر: Gemini غير متاح حالياً]"
 
 
 def _call_claude(sys_p, msg, max_tok=1500):
